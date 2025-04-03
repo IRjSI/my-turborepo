@@ -1,7 +1,7 @@
 {
   "name": "@repo/db",
   "exports": {
-    "./db": "./src/db.ts"
+    "./client": "./src/index.ts"
   },
   "version": "1.0.0",
   "main": "index.js",
@@ -14,5 +14,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "6.5.0",
+    "@types/mongoose": "^5.11.97",
+    "mongoose": "^8.13.1",
+    "prisma": "^6.5.0"
+  }
 }

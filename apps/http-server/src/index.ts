@@ -1,11 +1,12 @@
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import middleware from "./middleware";
+import middleware from "./middleware.js";
 import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/types";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { prismaClient } from "@repo/db/client";
 
 const app = express();
+app.use(express.json());
 
 app.post('/signup', async (req,res) => {
     try {
@@ -18,7 +19,7 @@ app.post('/signup', async (req,res) => {
         }
 
         try {
-            await prismaClient.user.create({
+            const user = await prismaClient.user.create({
                 data: {
                     name: parsedData.data.name,
                     email: parsedData.data.username,
@@ -26,7 +27,7 @@ app.post('/signup', async (req,res) => {
                 }
             })
             res.json({
-                message: ''
+                userId: user.id
             })
         } catch (error) {
             console.log(error);
@@ -43,31 +44,77 @@ app.post('/signup', async (req,res) => {
     }
 })
 
-app.post('/signin', (req,res) => {
+app.post('/signin', async (req,res) => {
     try {
-        const data = SigninSchema.safeParse(req.body);
-        if (!data.success) {
+        const parsedData = SigninSchema.safeParse(req.body);
+        if (!parsedData.success) {
             res.json({
                 message: 'User already exists'
             });
             return;
         }
+
+        try {
+            const user = await prismaClient.user.findFirst({
+                where: {
+                    email: parsedData.data?.username,
+                    password: parsedData.data?.password
+                }
+            })
+            if (!user) {
+                res.json({
+                    message: 'User not found'
+                })
+                return;
+            }
+
+            const token = jwt.sign({ userId: user?.id }, JWT_SECRET);
+    
+            res.json({
+                token: token
+            })
+        } catch (error) {
+            console.log(error);
+            res.json({
+                message: 'User not found'
+            })
+        }
     } catch (error) {
-        
+        console.log(error);
+        res.json({
+            message: 'Error logging-in'
+        })
     }
 })
 
-app.post('/room', middleware, (req,res) => {
+app.post('/room', middleware, async (req,res) => {
     try {
-        const data = CreateRoomSchema.safeParse(req.body);
-        if (!data.success) {
+        const parsedData = CreateRoomSchema.safeParse(req.body);
+        if (!parsedData.success) {
             res.json({
                 message: 'User already exists'
             });
             return;
         }
-    } catch (error) {
         
+        //@ts-ignore
+        const userId = req.userId
+
+        const room = await prismaClient.room.create({
+            data: {
+                slug: parsedData.data.name,
+                adminId: userId
+            }
+        })
+
+        res.json({
+            roomId: room.id
+        })
+    } catch (error) {
+        console.log(error);
+        res.json({
+            message: 'Error creating room'
+        })
     }
 })
 
